@@ -40,8 +40,9 @@ INSTALLED_APPS = [
     'drf_spectacular',
 
     # own apps
-    'apps.utils',
-    'apps.users'
+    # 'apps.utils',
+    'apps.users',
+    'apps.shop',
 ]
 
 MIDDLEWARE = [

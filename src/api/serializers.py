@@ -1,76 +1,44 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductImage, Cart, CartItem, Order, OrderItem, Review
+from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order
 
-
-# --- BRAND & KATEGORIYA SERIALIZER ---
-class BrandSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Brand
-        fields = ['id', 'name', 'slug', 'logo']
-
+# Qolgan kodlar o'zgarishsiz qoladi...
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'parent', 'sort', 'is_active']
+        fields = '__all__'
 
-
-# --- MAHSULOT RASMI VA MAHSULOT SERIALIZER ---
-class ProductImageSerializer(serializers.ModelSerializer):
+class BrandSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ProductImage
-        fields = ['id', 'image', 'is_main']
-
+        model = Brand
+        fields = '__all__'
 
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     brand = BrandSerializer(read_only=True)
-    images = ProductImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
-        fields = [
-            'id', 'category', 'brand', 'name', 'slug',
-            'article', 'price', 'old_price', 'description', 'images'
-        ]
+        fields = '__all__'
 
-
-# --- SAVATCHA SERIALIZERS ---
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(), source='product', write_only=True
+    )
 
     class Meta:
         model = CartItem
-        fields = ['id', 'product', 'quantity', 'price']
-
+        fields = ['id', 'cart', 'product', 'product_id', 'quantity', 'price']
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cart
-        fields = ['id', 'user', 'session_key', 'items', 'created_at']
-
-
-# --- BUYURTMA SERIALIZERS ---
-class OrderItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderItem
-        fields = ['id', 'product', 'price', 'quantity']
-
+        fields = ['id', 'user', 'session_key', 'items', 'updated_at']
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
-
     class Meta:
         model = Order
-        fields = ['id', 'number', 'user', 'status', 'total', 'items', 'created_at']
-
-
-# --- SHARH SERIALIZER ---
-class ReviewSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source='user.get_full_name', read_only=True)
-
-    class Meta:
-        model = Review
-        fields = ['id', 'product', 'user', 'author_name', 'rating', 'comment', 'created_at']
+        fields = '__all__'
