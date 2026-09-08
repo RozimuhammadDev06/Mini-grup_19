@@ -10,29 +10,25 @@ from django.conf import settings
 from datetime import timedelta
 
 class RegisterViews(APIView):
-
     def send_otp_code(self, user, email):
+        import random
+        code = str(random.randint(100000,999999))
         otp = UserOTPVerifications.objects.create(
             user=user,
-            code="",
-            expired_at=timezone.now(),
-            error_expired_at=timezone.now()
+            code=code,
+            expired_at=timezone.now() + timdelta(minutes=5)
         )
-        code = otp.generate_code()
         send_otp_email(email, code, "otp")
-        
-    
+
     def send_otp_code_link(self, user, email):
         now = timezone.now()
         otp = UserOTPIDVerifications.objects.create(
             user=user,
-            expired_at=now + timedelta(minutes=3),
-            error_expired_at=timezone.now()
+            expired_at=now + timedelta(minutes=3)
         )
         url = settings.BASE_URL_LINK + str(otp.code)
         send_otp_email(email, url, 'link')
-        
-    
+
 
 
     def post(self, request):
@@ -45,12 +41,11 @@ class RegisterViews(APIView):
             return Response({
                 "error": "Passwords not match"
             }, status=status.HTTP_400_BAD_REQUEST)
-    
         try:
             User.objects.get(email=email).delete()
             return Response({
                 "error": "Email already exists"
-            }, status=status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_t400_BAD_REQUEST)
         except:
             pass
 
@@ -60,7 +55,7 @@ class RegisterViews(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         ser = user_serializers.UserCreateSerializer(data=request.data)
         if ser.is_valid(raise_exception=True):
-            ser.save()
+            ser.save(username=email)
             user = User.objects.get(email=email)
             if otp_type == "otp":
                 self.send_otp_code(user, email)
@@ -71,10 +66,9 @@ class RegisterViews(APIView):
                 self.send_otp_code_link(user, email)
                 return Response({
                     "message": "Verifications link sent to your email"
-                }, status=status.HTTP_201_CREATED)
-                
+                }, status=status.HTTP_201_CREATED) 
         return Response({
             "error": "Something went wrong"
         }, status=status.HTTP_400_BAD_REQUEST)
-        
+
 
