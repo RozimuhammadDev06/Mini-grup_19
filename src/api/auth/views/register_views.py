@@ -19,6 +19,7 @@ class RegisterViews(APIView):
             expired_at=timezone.now() + timedelta(minutes=5)
         )
         send_otp_email(email, code, "otp")
+        return code
 
     def send_otp_code_link(self, user, email):
         now = timezone.now()
@@ -45,7 +46,7 @@ class RegisterViews(APIView):
             User.objects.get(email=email).delete()
             return Response({
                 "error": "Email already exists"
-            }, status=status.HTTP_t400_BAD_REQUEST)
+            }, status=status.HTTP_400_BAD_REQUEST)
         except:
             pass
 
@@ -58,9 +59,10 @@ class RegisterViews(APIView):
             ser.save(username=email)
             user = User.objects.get(email=email)
             if otp_type == "otp":
-                self.send_otp_code(user, email)
+                code = self.send_otp_code(user, email)
                 return Response({
-                    "message": "Verifications code sent to your email"
+                    "message": "Verifications code sent to your email",
+                    "otp": code
                 }, status=status.HTTP_201_CREATED)
             else:
                 self.send_otp_code_link(user, email)
