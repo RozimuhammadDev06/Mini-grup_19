@@ -42,13 +42,10 @@ class RegisterViews(APIView):
             return Response({
                 "error": "Passwords not match"
             }, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            User.objects.get(email=email).delete()
+        if User.objects.filter(email=email).exists():
             return Response({
                 "error": "Email already exists"
             }, status=status.HTTP_400_BAD_REQUEST)
-        except:
-            pass
 
         if otp_type not in ('link', 'otp'):
             return Response({
