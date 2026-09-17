@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = env("SECRET_KEY")
-
+GEMINI_API_KEY = env("GEMINI_API_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 
 DEBUG = env("DEBUG")
