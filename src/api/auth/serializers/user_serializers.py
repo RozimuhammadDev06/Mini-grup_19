@@ -8,6 +8,16 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email', 'first_name', 'last_name', 'password']
 
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
+    # qolgan validate metodlari o'zgarishsiz qoladi
+
     def validate_first_name(self, obj : str):
         if len(obj) < 2:
             raise ValidationError("First name must be length more 5")
@@ -46,7 +56,4 @@ class UserLoginSerializer(serializers.ModelSerializer):
         fields = ['email', 'first_name', 'last_name']
 
 
-class UserLoginSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['email', 'first_name', 'last_name']
+
