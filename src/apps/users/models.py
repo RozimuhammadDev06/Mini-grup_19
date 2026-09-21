@@ -25,7 +25,12 @@ class UserOTPVerifications(models.Model):
     for_forget_password = models.BooleanField(default=False)
     for_forget_password_verified = models.BooleanField(default=False)
     expired_at = models.DateTimeField(null=True, blank=True)
+    error_expired_at = models.DateTimeField(null=True, blank=True)   # ✅ qo'shildi
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_code_expired(self):                                       # ✅ qo'shildi
+        from django.utils import timezone
+        return self.expired_at is not None and self.expired_at > timezone.now()
 
     def __str__(self):
         return f"OTP for {self.user.username}"
