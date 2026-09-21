@@ -16,7 +16,8 @@ class RegisterViews(APIView):
         otp = UserOTPVerifications.objects.create(
             user=user,
             code=code,
-            expired_at=timezone.now() + timedelta(minutes=5)
+            expired_at=timezone.now() + timedelta(minutes=5),
+            error_expired_at=timezone.now() - timedelta(minutes=1)
         )
         send_otp_email(email, code, "otp")
         return code
