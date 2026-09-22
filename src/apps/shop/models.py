@@ -52,7 +52,7 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} (#{self.id})"
 
     class Meta:
         app_label = 'shop'
@@ -94,6 +94,17 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.number}"
+
+    class Meta:
+        app_label = 'shop'
+
+    
+class News(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='news')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.product.name
 
     class Meta:
         app_label = 'shop'

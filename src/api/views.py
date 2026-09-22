@@ -1,8 +1,8 @@
 from rest_framework import viewsets
-from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order
+from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
 from .serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer,
-    CartSerializer, CartItemSerializer, OrderSerializer
+    CartSerializer, CartItemSerializer, OrderSerializer, NewsSerializer
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -70,3 +70,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+
+class NewsViewSet(viewsets.ModelViewSet):
+    queryset = News.objects.all()
+    serializer_class = NewsSerializer

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order
+from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
 
 # Qolgan kodlar o'zgarishsiz qoladi...
 
@@ -47,4 +47,9 @@ class CartSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
+        fields = '__all__'
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
         fields = '__all__'
