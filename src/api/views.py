@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
 from .serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer,
@@ -10,20 +11,24 @@ from django.conf import settings
 from google import genai
 import numpy as np
 
-# Qolgan viewset kodlari o'zgarishsiz qoladi...
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
 
 class BrandViewSet(viewsets.ModelViewSet):
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     lookup_field = 'slug'
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     @action(detail=False, methods=['get'])
     def search(self, request):
@@ -59,18 +64,22 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(top_products, many=True)
         return Response(serializer.data)
 
+
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
+
 
 class CartItemViewSet(viewsets.ModelViewSet):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
 
+
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
 
+
 class NewsViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all()
-    serializer_class = NewsSerializer
+    serializer_class = NewsSerializer   
