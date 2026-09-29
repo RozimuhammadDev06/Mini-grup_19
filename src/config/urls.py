@@ -4,6 +4,8 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+
 
 urlpatterns = [
     path('', TemplateView.as_view(
@@ -14,8 +16,16 @@ urlpatterns = [
     path('api/', include('api.urls')),
 ]
 
+
 if settings.DEBUG:
     urlpatterns += [
         *static(settings.STATIC_URL, document_root=settings.STATIC_ROOT),
         *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     ]
+
+
+urlpatterns += [
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+]
