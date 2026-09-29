@@ -82,4 +82,4 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 class NewsViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all()
-    serializer_class = NewsSerializer   
+    serializer_class = NewsSerializer
