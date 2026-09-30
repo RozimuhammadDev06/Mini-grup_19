@@ -35,3 +35,6 @@ SIMPLE_JWT = {
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in env("CSRF_TRUSTED_ORIGINS").split(",")]
 CORS_ALLOWED_ORIGINS = [o.strip() for o in env("CORS_ALLOWED_ORIGINS").split(",")]
+
+CORS_ALLOW_ALL_ORIGINS = True  # ✅ vaqtincha qo'shildi
+CORS_ALLOW_CREDENTIALS = True
