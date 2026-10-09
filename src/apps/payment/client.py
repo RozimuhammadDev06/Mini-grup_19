@@ -51,7 +51,7 @@ class FintechhubClient:
         }
         if return_url:
             data["return_url"] = return_url
-        return self.request("POST", "/api/v2/pay/init", json_data=data)
+        return self.request("POST", "/v2/pay/init", json_data=data)
 
     def card_token_request(self, service_id, card_number, expire_date, save_card=False):
         data = {
