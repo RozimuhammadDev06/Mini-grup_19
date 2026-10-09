@@ -30,6 +30,37 @@ class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = 'slug'
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        ids = self.request.query_params.get('ids')
+
+        if ids is not None:
+            try:
+                product_ids = [
+                    int(value.strip())
+                    for value in ids.split(',')
+                    if value.strip()
+                ]
+            except ValueError:
+                return queryset.none()
+
+            if not product_ids:
+                return queryset.none()
+
+            queryset = queryset.filter(id__in=product_ids)
+
+        return queryset
+
+
     @action(detail=False, methods=['get'])
     def search(self, request):
         query = request.query_params.get('q', '').strip()
