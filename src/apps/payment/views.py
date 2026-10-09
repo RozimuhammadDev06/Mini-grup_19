@@ -131,6 +131,11 @@ from apps.payment.client import FintechhubClient
 
 class CheckoutPayView(APIView):
     def post(self, request, order_id):
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=404)
+
         if order.status == "paid":
             return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
 
@@ -227,6 +232,12 @@ class CardVerifyView(APIView):
         order_id = request.data.get("order_id")
         reference_id = request.data.get("reference_id")
         sms_code = request.data.get("sms_code")
+
+        try:
+            order = Order.objects.get(id=order_id)
+            card_token_obj = CardToken.objects.get(id=reference_id)
+        except (Order.DoesNotExist, CardToken.DoesNotExist):
+            return Response({"error": "Not found"}, status=404)
 
         if order.status == "paid":
             return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
