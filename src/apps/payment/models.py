@@ -20,7 +20,7 @@ class Payment(models.Model):
 
 
 class CardToken(models.Model):
-    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='card_tokens')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, null=True, blank=True, related_name='card_tokens')
     card_token = models.CharField(max_length=255)
     card_number_masked = models.CharField(max_length=30)
     card_expire = models.CharField(max_length=10)

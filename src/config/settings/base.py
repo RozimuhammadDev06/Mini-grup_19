@@ -17,6 +17,7 @@ FHP_MERCHANT_USER_ID = env("FHP_MERCHANT_USER_ID", default="")
 FHP_MERCHANT_SECRET_KEY = env("FHP_MERCHANT_SECRET_KEY", default="")
 FHP_SERVICE_ID = env("FHP_SERVICE_ID", default="")
 FHP_SERVICE_SECRET_KEY = env("FHP_SERVICE_SECRET_KEY", default="")
+FHP_RETURN_DEBUG_OTP = env.bool("FHP_RETURN_DEBUG_OTP", default=False)
 # SECURITY WARNING: don't run with debug turned on in production!
 
 DEBUG = env("DEBUG")

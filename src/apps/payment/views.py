@@ -211,12 +211,15 @@ class CardRequestView(APIView):
             temporary=not save_card,
         )
 
-        return Response({
+        result = {
             "reference_id": card_token_obj.id,
             "card_mask": card_mask,
             "otp_length": data.get("otp_length", 6),
             "resend_after_sec": data.get("resend_after_sec", 60),
-        })
+        }
+        if settings.FHP_RETURN_DEBUG_OTP and data.get("otp"):
+            result["debug_otp"] = data["otp"]
+        return Response(result)
 
 
 class CardVerifyView(APIView):
