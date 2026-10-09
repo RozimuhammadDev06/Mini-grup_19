@@ -11,6 +11,12 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = env("SECRET_KEY")
 GEMINI_API_KEY = env("GEMINI_API_KEY")
+
+FHP_BASE_URL = env("FHP_BASE_URL", default="")
+FHP_MERCHANT_USER_ID = env("FHP_MERCHANT_USER_ID", default="")
+FHP_MERCHANT_SECRET_KEY = env("FHP_MERCHANT_SECRET_KEY", default="")
+FHP_SERVICE_ID = env("FHP_SERVICE_ID", default="")
+FHP_SERVICE_SECRET_KEY = env("FHP_SERVICE_SECRET_KEY", default="")
 # SECURITY WARNING: don't run with debug turned on in production!
 
 DEBUG = env("DEBUG")
@@ -43,6 +49,7 @@ INSTALLED_APPS = [
     # 'apps.utils',
     'apps.users',
     'apps.shop',
+    'apps.payment',
 ]
 
 MIDDLEWARE = [

@@ -19,4 +19,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('user/', include('api.auth.urls')),
     path('user/', include('api.user.urls')),
+    path('payment/', include('apps.payment.urls')),
 ]
