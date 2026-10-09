@@ -187,6 +187,8 @@ class CardRequestView(APIView):
             order = Order.objects.get(id=order_id)
         except Order.DoesNotExist:
             return Response({"error": "Order not found"}, status=404)
+        if order.status == "paid":
+            return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
 
         client = FintechhubClient()
         response = client.card_token_request(
@@ -242,7 +244,8 @@ class CardVerifyView(APIView):
         )
 
         if verify_response.status_code != 200:
-            return Response({"error_code": "OTP_INVALID"}, status=400)
+            code = "OTP_EXPIRED" if "expired" in verify_response.text.lower() else "OTP_INVALID"
+            return Response({"error_code": code}, status=400)
 
         card_token_obj.status = "active"
         card_token_obj.save()
