@@ -1,272 +1,142 @@
-import hashlib
+import hashlib, hmac, json
 from decimal import Decimal
-from datetime import datetime
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.views import APIView
-from rest_framework.response import Response
+
+import requests
 from django.conf import settings
-from apps.shop.models import Order
-from apps.payment.models import Payment, CallbackLog
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .client import FintechhubClient
+# Order importini hozirgi views.py dagidek qoldiring (from apps.... import Order)
+
+PAYMENT_BASE_URL = "http://159.223.145.49:3079"
 
 
-def build_prepare_sign(click_trans_id, service_id, secret_key, merchant_trans_id, amount, action, sign_time):
-    raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{amount}{action}{sign_time}"
-    return hashlib.md5(raw.encode()).hexdigest()
+# ---------- LOGIN / REGISTER (ustoz usuli) ----------
+def _forward_auth(request, path):
+    if request.method != "POST":
+        return JsonResponse({"error": "Faqat POST"}, status=405)
+    try:
+        data = json.loads(request.body) if request.body else request.POST.dict()
+    except ValueError:
+        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
+    try:
+        resp = requests.post(f"{PAYMENT_BASE_URL}{path}", json=data, timeout=20)
+    except requests.exceptions.Timeout:
+        return JsonResponse({"error": "Fintechhub javob bermadi"}, status=504)
+    except requests.exceptions.RequestException as e:
+        return JsonResponse({"error": str(e)}, status=502)
+    try:
+        return JsonResponse(resp.json(), status=resp.status_code, safe=False)
+    except ValueError:
+        return JsonResponse({"error": "Noto'g'ri javob", "raw": resp.text}, status=502)
 
 
-def build_complete_sign(click_trans_id, service_id, secret_key, merchant_trans_id, merchant_prepare_id, amount, action, sign_time):
-    raw = f"{click_trans_id}{service_id}{secret_key}{merchant_trans_id}{merchant_prepare_id}{amount}{action}{sign_time}"
-    return hashlib.md5(raw.encode()).hexdigest()
+@csrf_exempt
+def login(request):
+    return _forward_auth(request, "/api/auth/login/")
+
+
+@csrf_exempt
+def register(request):
+    return _forward_auth(request, "/api/auth/register/")
+
+
+# ---------- TO'LOV PROXY ----------
+class FintechProxy(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    path = None
+
+    def post(self, request):
+        body = {k: v for k, v in request.data.items()}
+        body["service_id"] = int(settings.FHP_SERVICE_ID)
+        try:
+            resp = FintechhubClient().request("POST", self.path, json_data=body)
+        except requests.exceptions.Timeout:
+            return Response({"error": "Fintechhub javob bermadi (timeout)"}, status=504)
+        except requests.exceptions.RequestException as e:
+            return Response({"error": str(e)}, status=502)
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {"error": "Noto'g'ri javob", "raw": resp.text}
+        return Response(data, status=resp.status_code)
+
+
+class PayInitView(FintechProxy):
+    path = "/v2/pay/init"
+
+class CardRequestView(FintechProxy):
+    path = "/v2/merchant/card_token/request"
+
+class CardVerifyView(FintechProxy):
+    path = "/v2/merchant/card_token/verify"
+
+class CardPaymentView(FintechProxy):
+    path = "/v2/merchant/card_token/payment"
+
+
+# ---------- CALLBACKLAR (Fintechhub chaqiradi) ----------
+def make_sign(*parts):
+    return hashlib.md5("".join(str(p) for p in parts).encode()).hexdigest()
 
 
 class PrepareCallbackView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request):
-        data = request.data
-        click_trans_id = data.get("click_trans_id")
-        service_id = data.get("service_id")
-        merchant_trans_id = data.get("merchant_trans_id")
-        amount = data.get("amount")
-        action = data.get("action")
-        sign_time = data.get("sign_time")
-        sign_string = data.get("sign_string")
-
-        expected_sign = build_prepare_sign(
-            click_trans_id, service_id, settings.FHP_SERVICE_SECRET_KEY,
-            merchant_trans_id, amount, action, sign_time
+        d = request.data
+        expected = make_sign(
+            d.get("click_trans_id"), d.get("service_id"),
+            settings.FHP_SERVICE_SECRET_KEY, d.get("merchant_trans_id"),
+            d.get("amount"), d.get("action"), d.get("sign_time"),
         )
-
-        signature_valid = expected_sign == sign_string
-
-        response_data = {"error": -1, "error_note": "Invalid signature"}
-
-        if signature_valid:
-            try:
-                order = Order.objects.get(number=merchant_trans_id)
-                if Decimal(str(order.total)) == Decimal(str(amount)) and order.status in ("pending", "pending_payment"):
-                    payment, created = Payment.objects.get_or_create(
-                        order=order,
-                        defaults={"fhp_payment_id": click_trans_id, "prepared_at": timezone.now()}
-                    )
-                    response_data = {
-                        "error": 0,
-                        "error_note": "Success",
-                        "merchant_prepare_id": payment.id,
-                    }
-                else:
-                    response_data = {"error": -5, "error_note": "Order already paid or amount mismatch"}
-            except Order.DoesNotExist:
-                response_data = {"error": -5, "error_note": "Order not found"}
-
-        CallbackLog.objects.create(
-            endpoint="prepare",
-            raw_payload=data,
-            signature_valid=signature_valid,
-            response_sent=response_data,
-        )
-
-        return Response(response_data)
+        if not hmac.compare_digest(expected, str(d.get("sign_string", ""))):
+            return Response({"error": -1, "error_note": "SIGN CHECK FAILED"})
+        try:
+            order = Order.objects.get(id=d.get("merchant_trans_id"))
+        except Order.DoesNotExist:
+            return Response({"error": -5, "error_note": "Order not found"})
+        # amount maydoni nomini o'zingizniki bilan almashtiring (masalan total_price)
+        if Decimal(str(d.get("amount"))) != Decimal(str(order.total_price)):
+            return Response({"error": -2, "error_note": "Incorrect amount"})
+        return Response({
+            "click_trans_id": d.get("click_trans_id"),
+            "merchant_trans_id": d.get("merchant_trans_id"),
+            "merchant_prepare_id": order.id,
+            "error": 0, "error_note": "Success",
+        })
 
 
 class CompleteCallbackView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request):
-        data = request.data
-        click_trans_id = data.get("click_trans_id")
-        service_id = data.get("service_id")
-        merchant_trans_id = data.get("merchant_trans_id")
-        merchant_prepare_id = data.get("merchant_prepare_id")
-        amount = data.get("amount")
-        action = data.get("action")
-        sign_time = data.get("sign_time")
-        sign_string = data.get("sign_string")
-        error = data.get("error")
-
-        expected_sign = build_complete_sign(
-            click_trans_id, service_id, settings.FHP_SERVICE_SECRET_KEY,
-            merchant_trans_id, merchant_prepare_id, amount, action, sign_time
+        d = request.data
+        expected = make_sign(
+            d.get("click_trans_id"), d.get("service_id"),
+            settings.FHP_SERVICE_SECRET_KEY, d.get("merchant_trans_id"),
+            d.get("merchant_prepare_id"), d.get("amount"),
+            d.get("action"), d.get("sign_time"),
         )
-
-        signature_valid = expected_sign == sign_string
-
-        response_data = {"error": -1, "error_note": "Invalid signature"}
-
-        if signature_valid:
-            try:
-                payment = Payment.objects.get(id=merchant_prepare_id)
-                if str(error) == "0":
-                    payment.fhp_status = 3
-                    payment.confirmed_at = timezone.now()
-                    payment.save()
-                    payment.order.status = "paid"
-                    payment.order.save()
-                    response_data = {
-                        "error": 0,
-                        "error_note": "Success",
-                        "merchant_confirm_id": payment.id,
-                    }
-                else:
-                    payment.refunded_at = timezone.now()
-                    payment.save()
-                    payment.order.status = "refunded"
-                    payment.order.save()
-                    response_data = {
-                        "error": 0,
-                        "error_note": "Success",
-                        "merchant_confirm_id": payment.id,
-                    }
-            except Payment.DoesNotExist:
-                response_data = {"error": -5, "error_note": "Payment not found"}
-
-        CallbackLog.objects.create(
-            endpoint="complete",
-            raw_payload=data,
-            signature_valid=signature_valid,
-            response_sent=response_data,
-        )
-
-        return Response(response_data)
-    
-from apps.payment.client import FintechhubClient
-
-
-class CheckoutPayView(APIView):
-    def post(self, request, order_id):
+        if not hmac.compare_digest(expected, str(d.get("sign_string", ""))):
+            return Response({"error": -1, "error_note": "SIGN CHECK FAILED"})
         try:
-            order = Order.objects.get(id=order_id)
+            order = Order.objects.get(id=d.get("merchant_trans_id"))
         except Order.DoesNotExist:
-            return Response({"error": "Order not found"}, status=404)
-
-        if order.status == "paid":
-            return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
-
-        phone_number = request.data.get("phone_number", "")
-
-        client = FintechhubClient()
-        response = client.pay_init(
-            service_id=settings.FHP_SERVICE_ID,
-            merchant_trans_id=order.number,
-            amount=order.total,
-            phone_number=phone_number,
-        )
-
-        if response.status_code != 200:
-            return Response({"error": "Fintechhub xatosi", "detail": response.text}, status=502)
-
-        data = response.json()
-        order.status = "pending_payment"
-        order.save()
-
+            return Response({"error": -5, "error_note": "Order not found"})
+        if str(d.get("error")) == "0":
+            order.status = "paid"
+            order.save()
         return Response({
-            "order_id": order.id,
-            "amount": str(order.total),
-            "status": order.status,
-            "payment_id": data.get("payment_id"),
+            "click_trans_id": d.get("click_trans_id"),
+            "merchant_trans_id": d.get("merchant_trans_id"),
+            "merchant_confirm_id": order.id,
+            "error": 0, "error_note": "Success",
         })
-
-import re
-from apps.payment.models import CardToken
-
-
-class CardRequestView(APIView):
-    def post(self, request):
-        order_id = request.data.get("order_id")
-        card_number = request.data.get("card_number", "")
-        expire_date = request.data.get("expire_date", "")
-        save_card = request.data.get("save_card", False)
-
-        if not re.fullmatch(r"\d{16}", card_number):
-            return Response({"error_code": "CARD_INVALID"}, status=400)
-
-        if not re.fullmatch(r"(0[1-9]|1[0-2])\d{2}", expire_date):
-            return Response({"error_code": "CARD_INVALID"}, status=400)
-
-        month = int(expire_date[:2])
-        year = 2000 + int(expire_date[2:])
-        now = timezone.now()
-        if (year, month) < (now.year, now.month):
-            return Response({"error_code": "CARD_EXPIRED"}, status=400)
-
-        try:
-            order = Order.objects.get(id=order_id)
-        except Order.DoesNotExist:
-            return Response({"error": "Order not found"}, status=404)
-        if order.status == "paid":
-            return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
-
-        client = FintechhubClient()
-        response = client.card_token_request(
-            service_id=settings.FHP_SERVICE_ID,
-            card_number=card_number,
-            expire_date=expire_date,
-            save_card=save_card,
-        )
-
-        if response.status_code != 200:
-            return Response({"error": "Fintechhub xatosi", "detail": response.text}, status=502)
-
-        data = response.json()
-        card_mask = data.get("card_number", card_number[:6] + "******" + card_number[-4:])
-
-        card_token_obj = CardToken.objects.create(
-            user=request.user if request.user.is_authenticated else None,
-            card_token=data.get("card_token", ""),
-            card_number_masked=card_mask,
-            card_expire=expire_date,
-            status="pending",
-            temporary=not save_card,
-        )
-
-        result = {
-            "reference_id": card_token_obj.id,
-            "card_mask": card_mask,
-            "otp_length": data.get("otp_length", 6),
-            "resend_after_sec": data.get("resend_after_sec", 60),
-        }
-        if settings.FHP_RETURN_DEBUG_OTP and data.get("otp"):
-            result["debug_otp"] = data["otp"]
-        return Response(result)
-
-
-class CardVerifyView(APIView):
-    def post(self, request):
-        order_id = request.data.get("order_id")
-        reference_id = request.data.get("reference_id")
-        sms_code = request.data.get("sms_code")
-
-        try:
-            order = Order.objects.get(id=order_id)
-            card_token_obj = CardToken.objects.get(id=reference_id)
-        except (Order.DoesNotExist, CardToken.DoesNotExist):
-            return Response({"error": "Not found"}, status=404)
-
-        if order.status == "paid":
-            return Response({"error_code": "ORDER_ALREADY_PAID"}, status=400)
-
-        client = FintechhubClient()
-        verify_response = client.card_token_verify(
-            service_id=settings.FHP_SERVICE_ID,
-            card_token=card_token_obj.card_token,
-            sms_code=sms_code,
-        )
-
-        if verify_response.status_code != 200:
-            code = "OTP_EXPIRED" if "expired" in verify_response.text.lower() else "OTP_INVALID"
-            return Response({"error_code": code}, status=400)
-
-        card_token_obj.status = "active"
-        card_token_obj.save()
-
-        pay_response = client.card_token_payment(
-            service_id=settings.FHP_SERVICE_ID,
-            card_token=card_token_obj.card_token,
-            amount=order.total,
-            merchant_trans_id=order.number,
-        )
-
-        if pay_response.status_code != 200:
-            return Response({"status": "FAILED", "error_code": "PAYMENT_REJECTED"}, status=400)
-
-        order.refresh_from_db()
-        final_status = "PAID" if order.status == "paid" else "PENDING"
-
-        return Response({"status": final_status})
