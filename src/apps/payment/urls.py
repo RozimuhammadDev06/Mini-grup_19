@@ -1,13 +1,13 @@
 from django.urls import path
-from apps.payment.views import (
-    PrepareCallbackView, CompleteCallbackView,
-    CheckoutPayView, CardRequestView, CardVerifyView
-)
+from . import views
 
 urlpatterns = [
-    path('prepare/', PrepareCallbackView.as_view(), name='payment-prepare'),
-    path('complete/', CompleteCallbackView.as_view(), name='payment-complete'),
-    path('checkout/orders/<int:order_id>/pay/', CheckoutPayView.as_view(), name='checkout-pay'),
-    path('card/request/', CardRequestView.as_view(), name='card-request'),
-    path('card/verify/', CardVerifyView.as_view(), name='card-verify'),
+    path('login/', views.login),
+    path('register/', views.register),
+    path('pay/init/', views.PayInitView.as_view()),
+    path('card/request/', views.CardRequestView.as_view()),
+    path('card/verify/', views.CardVerifyView.as_view()),
+    path('card/payment/', views.CardPaymentView.as_view()),
+    path('prepare/', views.PrepareCallbackView.as_view()),
+    path('complete/', views.CompleteCallbackView.as_view()),
 ]
