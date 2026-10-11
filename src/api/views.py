@@ -1,15 +1,16 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
 from .serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer,
-    CartSerializer, CartItemSerializer, OrderSerializer, NewsSerializer
+    CartSerializer, CartItemSerializer, OrderSerializer, NewsSerializer, FavouriteSerializer
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.conf import settings
 from google import genai
 import numpy as np
+from rest_framework import mixins
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -114,3 +115,18 @@ class OrderViewSet(viewsets.ModelViewSet):
 class NewsViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all()
     serializer_class = NewsSerializer
+
+class FavouriteViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = FavouriteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Favourite.objects.filter(user=self.request.user).select_related("product")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

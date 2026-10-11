@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
+from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News, Favourite
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -72,3 +72,20 @@ class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = News
         fields = '__all__'
+
+class FavouriteSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(), source="product", write_only=True
+    )
+
+    class Meta:
+        model = Favourite
+        fields = ["id", "product", "product_id", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        obj, _ = Favourite.objects.get_or_create(
+            user=validated_data["user"], product=validated_data["product"]
+        )
+        return obj
