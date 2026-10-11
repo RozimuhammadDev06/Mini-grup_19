@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
-from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News
+from apps.shop.models import Category, Brand, Product, Cart, CartItem, Order, News, Favourite
 from .serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer,
     CartSerializer, CartItemSerializer, OrderSerializer, NewsSerializer, FavouriteSerializer
