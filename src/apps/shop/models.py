@@ -108,3 +108,19 @@ class News(models.Model):
 
     class Meta:
         app_label = 'shop'
+
+class Favourite(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favourites"
+    )
+    product = models.ForeignKey(
+        "Product", on_delete=models.CASCADE, related_name="favourites"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "product")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} -> {self.product}"
