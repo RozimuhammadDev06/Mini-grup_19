@@ -124,7 +124,12 @@ REST_FRAMEWORK = {
     # 'UNAUTHENTICATED_USER': 'users.models.AnonymousUser',
 }
 
+from datetime import timedelta
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+}
 
 LANGUAGE_CODE = 'en-us'
 
