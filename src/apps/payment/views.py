@@ -16,33 +16,32 @@ PAYMENT_BASE_URL = "http://159.223.145.49:3079"
 
 
 # ---------- LOGIN / REGISTER (ustoz usuli) ----------
-def _forward_auth(request, path):
-    if request.method != "POST":
-        return JsonResponse({"error": "Faqat POST"}, status=405)
-    try:
-        data = json.loads(request.body) if request.body else request.POST.dict()
-    except ValueError:
-        return JsonResponse({"error": "Noto'g'ri JSON"}, status=400)
-    try:
-        resp = requests.post(f"{PAYMENT_BASE_URL}{path}", json=data, timeout=20)
-    except requests.exceptions.Timeout:
-        return JsonResponse({"error": "Fintechhub javob bermadi"}, status=504)
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({"error": str(e)}, status=502)
-    try:
-        return JsonResponse(resp.json(), status=resp.status_code, safe=False)
-    except ValueError:
-        return JsonResponse({"error": "Noto'g'ri javob", "raw": resp.text}, status=502)
+class AuthProxy(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    path = None
+
+    def post(self, request):
+        body = {k: v for k, v in request.data.items()}
+        try:
+            resp = requests.post(f"{PAYMENT_BASE_URL}{self.path}", json=body, timeout=20)
+        except requests.exceptions.Timeout:
+            return Response({"error": "Fintechhub javob bermadi"}, status=504)
+        except requests.exceptions.RequestException as e:
+            return Response({"error": str(e)}, status=502)
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {"error": "Noto'g'ri javob", "raw": resp.text}
+        return Response(data, status=resp.status_code)
 
 
-@csrf_exempt
-def login(request):
-    return _forward_auth(request, "/api/auth/login/")
+class LoginView(AuthProxy):
+    path = "/api/auth/login/"
 
 
-@csrf_exempt
-def register(request):
-    return _forward_auth(request, "/api/auth/register/")
+class RegisterView(AuthProxy):
+    path = "/api/auth/register/"
 
 
 # ---------- TO'LOV PROXY ----------
