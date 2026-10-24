@@ -7,6 +7,8 @@ from api.auth.serializers.user_serializers import UserLoginSerializer
 
 
 class LoginView(APIView):
+    authentication_classes = []
+
 
     def post(self, request):
         email = request.data.get("email")
