@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 
 
 class VerificationsOTPView(APIView):
+    authentication_classes = []
+
 
     def post(self, request):
         email = request.data.get("email")

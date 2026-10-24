@@ -7,6 +7,8 @@ from api.auth.serializers import user_serializers
 
 
 class RegisterViews(APIView):
+    authentication_classes = []
+
 
     def post(self, request):
         email = request.data.get("email")

@@ -10,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 
     
 class ResendVerificationsOTPView(APIView):
+    authentication_classes = []
+
 
     def send_otp_code(self, otp_data):
         code = otp_data.generate_code()
